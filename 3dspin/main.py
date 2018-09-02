@@ -6,15 +6,15 @@ ___categories___   = ["Demo"]
 ___dependencies___ = ["app", "ugfx_helper", "random", "sleep", "buttons"]
 
 import ugfx
-import buttons
+from tilda import Buttons
 import math
-from os import listdir
+from uos import listdir
 import time
 # from imu import IMU
 import gc
 # import pyb
 
-app_path = '/3dspin'
+app_path = './3dspin'
 
 from math import sqrt
 
@@ -59,7 +59,7 @@ class Matrix:
 			for i in range(self.rows):
 				self.m[i][i] = 1.0
 
-	def __mul__(self, right):
+	def mul(self, right):
 		if isinstance(right, Matrix):
 			r = Matrix(False)
 			for i in range(self.rows):
@@ -106,7 +106,7 @@ def loadDat(filename):
         if line[:2] == "v ":
             parts = line.split(" ")
             obj_vertices.append(
-                matrix.Vector3D(
+                Vector3D(
                     float(parts[1]),
                     float(parts[2]),
                     float(parts[3])
@@ -132,7 +132,7 @@ def loadObj(filename):
         if line[:2] == "v ":
             parts = line.split(" ")
             obj_vertices.append(
-                matrix.Vector3D(
+                Vector3D(
                     float(parts[1]),
                     float(parts[2]),
                     float(parts[3])
@@ -154,7 +154,7 @@ def toScreenCoords(pv):
 	return [px, py]
 
 def createCameraMatrix(x,y,z):
-    camera_transform = matrix.Matrix()
+    camera_transform = Matrix()
     camera_transform.m[0][3] = x
     camera_transform.m[1][3] = y
     camera_transform.m[2][3] = z
@@ -162,7 +162,7 @@ def createCameraMatrix(x,y,z):
 
 def createProjectionMatrix(horizontal_fov, zfar, znear):
     s = 1/(math.tan(math.radians(horizontal_fov/2)))
-    proj = matrix.Matrix()
+    proj = Matrix()
     proj.m[0][0] = s * (240/320) # inverse aspect ratio
     proj.m[1][1] = s
     proj.m[2][2] = -zfar/(zfar-znear)
@@ -171,22 +171,22 @@ def createProjectionMatrix(horizontal_fov, zfar, znear):
     return proj
 
 def createRotationMatrix(x_rotation, y_rotation, z_rotation):
-    rot_x = matrix.Matrix()
+    rot_x = Matrix()
     rot_x.m[1][1] = rot_x.m[2][2] = math.cos(x_rotation)
     rot_x.m[2][1] = math.sin(x_rotation)
     rot_x.m[1][2] = -rot_x.m[2][1]
 
-    rot_y = matrix.Matrix()
+    rot_y = Matrix()
     rot_y.m[0][0] = rot_y.m[2][2] = math.cos(y_rotation)
     rot_y.m[0][2] = math.sin(y_rotation)
     rot_y.m[2][0] = -rot_y.m[0][2]
 
-    rot_z = matrix.Matrix()
+    rot_z = Matrix()
     rot_z.m[0][0] = rot_z.m[1][1] = math.cos(z_rotation)
     rot_z.m[1][0] = math.sin(z_rotation)
     rot_z.m[0][1] = -rot_z.m[1][0]
 
-    return rot_z * rot_x * rot_y
+    return rot_z.mul(rot_x).mul(rot_y)
 
 def normal(face, vertices, normalize = True):
     # Work out the face normal for lighting
@@ -206,12 +206,12 @@ def clear_screen():
 
 def render(mode, rotation):
     # Rotate all the vertices in one go
-    vertices = [rotation * vertex for vertex in obj_vertices]
+    vertices = [rotation.mul(vertex) for vertex in obj_vertices]
     # Calculate normal for each face (for lighting)
     if mode == FLAT:
         face_normal_zs = [normal(face, vertices).z for face in obj_faces]
     # Project (with camera) all the vertices in one go as well
-    vertices = [camera_projection * vertex for vertex in vertices]
+    vertices = [camera_projection.mul(vertex) for vertex in vertices]
     # Calculate projected normals for each face
     if mode != WIREFRAME:
         proj_normal_zs = [normal(face, vertices, False).z for face in obj_faces]
@@ -250,10 +250,11 @@ def render(mode, rotation):
             last_polygons.append(poly)
 
 def vsync():
-    while(tear.value() == 0):
-        pass
-    while(tear.value()):
-        pass
+	None
+    # while(tear.value() == 0):
+    #     pass
+    # while(tear.value()):
+    #     pass
 
 def calculateRotation(smoothing, accelerometer):
     # Keep a list of recent rotations to smooth things out
@@ -275,6 +276,7 @@ def calculateRotation(smoothing, accelerometer):
         math.radians(y_rotation),
         sum(z_rotations) / smoothing
     )
+print("Hello 3DSpin")
 
 # Initialise hardware
 ugfx.init()
@@ -283,22 +285,28 @@ ugfx.clear(ugfx.BLACK)
 # buttons.init()
 
 # Enable tear detection for vsync
-ugfx.enable_tear()
+# ugfx.enable_tear()
 # tear = pyb.Pin("TEAR", pyb.Pin.IN)
-ugfx.set_tear_line(1)
+#ugfx.set_tear_line(1)
+
+print("Graphics initalised")
 
 # Set up static rendering matrices
 camera_transform = createCameraMatrix(0, 0, -5.0)
 proj = createProjectionMatrix(45.0, 100.0, 0.1)
-camera_projection = proj * camera_transform
+camera_projection = proj.mul(camera_transform)
+
+print("Camera initalised")
 
 # Get the list of available objects, and load the first one
 obj_vertices = []
 obj_faces = []
+print("available objects: {}", listdir(app_path))
 objects = [x for x in listdir(app_path) if (((".obj" in x) | (".dat" in x)) & (x[0] != "."))]
 selected = 0
 loadObject(objects[selected])
-print("loaded object")
+
+print("loaded object {}", objects[selected])
 
 # Set up rotation tracking arrays
 x_rotations = []
@@ -327,22 +335,22 @@ while run:
         calculateRotation(smoothing, None)
     )
     # Button presses
-    if buttons.is_pressed("JOY_LEFT"):
+    if Buttons.is_pressed(Buttons.JOY_Left):
         y_rotation -= 5
-    if buttons.is_pressed("JOY_RIGHT"):
+    if Buttons.is_pressed(Buttons.JOY_Right):
         y_rotation += 5
-    if buttons.is_pressed("JOY_CENTER"):
+    if Buttons.is_pressed(Buttons.JOY_Center):
         y_rotation = 0
-    if buttons.is_pressed("BTN_B"):
+    if Buttons.is_pressed(Buttons.BTN_B):
         selected += 1
         if selected >= len(objects):
             selected = 0
         loadObject(objects[selected])
         time.sleep_ms(500) # Wait a while to avoid skipping ahead if the user still has the button down
-    if buttons.is_pressed("BTN_A"):
+    if Buttons.is_pressed(Buttons.BTN_A):
         mode += 1
         if mode > 3:
             mode = 1
         time.sleep_ms(500) # Wait a while to avoid skipping ahead if the user still has the button down
-    if buttons.is_pressed("BTN_MENU"):
+    if Buttons.is_pressed(Buttons.BTN_Menu):
         run = False
