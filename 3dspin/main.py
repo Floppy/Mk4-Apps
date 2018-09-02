@@ -149,8 +149,8 @@ def loadObj(filename):
     f.close()
 
 def toScreenCoords(pv):
-	px = int((pv.x+1)*0.5*320)
-	py = int((1-(pv.y+1)*0.5)*240)
+	px = int((pv.x+1)*0.5*240)
+	py = int((1-(pv.y+1)*0.5)*320)
 	return [px, py]
 
 def createCameraMatrix(x,y,z):
@@ -163,7 +163,7 @@ def createCameraMatrix(x,y,z):
 def createProjectionMatrix(horizontal_fov, zfar, znear):
     s = 1/(math.tan(math.radians(horizontal_fov/2)))
     proj = Matrix()
-    proj.m[0][0] = s * (240/320) # inverse aspect ratio
+    proj.m[0][0] = s * (320/240) # inverse aspect ratio
     proj.m[1][1] = s
     proj.m[2][2] = -zfar/(zfar-znear)
     proj.m[3][2] = -1.0
@@ -258,13 +258,13 @@ def vsync():
 
 def calculateRotation(smoothing, accelerometer):
     # Keep a list of recent rotations to smooth things out
-    global x_rotations
-    global z_rotations
+    global x_rotation
+    global z_rotation
     # First, pop off the oldest rotation
-    if len(x_rotations) >= smoothing:
-        x_rotations = x_rotations[1:]
-    if len(z_rotations) >= smoothing:
-        z_rotations = z_rotations[1:]
+    # if len(x_rotations) >= smoothing:
+    #     x_rotations = x_rotations[1:]
+    # if len(z_rotations) >= smoothing:
+    #     z_rotations = z_rotations[1:]
     # Now append a new rotation
     pi_2 = math.pi / 2
     #x_rotations.append(-accelerometer['z'] * pi_2)
@@ -272,9 +272,9 @@ def calculateRotation(smoothing, accelerometer):
     # Calculate rotation matrix
     return createRotationMatrix(
         # this averaging isn't correct in the first <smoothing> frames, but who cares
-        sum(x_rotations) / smoothing,
+        math.radians(x_rotation),
         math.radians(y_rotation),
-        sum(z_rotations) / smoothing
+        math.radians(z_rotation)
     )
 print("Hello 3DSpin")
 
@@ -285,7 +285,7 @@ ugfx.clear(ugfx.BLACK)
 # buttons.init()
 
 # Enable tear detection for vsync
-# ugfx.enable_tear()
+#  ugfx.enable_tear()
 # tear = pyb.Pin("TEAR", pyb.Pin.IN)
 #ugfx.set_tear_line(1)
 
@@ -309,8 +309,8 @@ loadObject(objects[selected])
 print("loaded object {}", objects[selected])
 
 # Set up rotation tracking arrays
-x_rotations = []
-z_rotations = []
+x_rotation = 0
+z_rotation = 0
 y_rotation = 0
 # Smooth rotations over 5 frames
 smoothing = 5
@@ -335,6 +335,9 @@ while run:
         calculateRotation(smoothing, None)
     )
     # Button presses
+    y_rotation += 5
+    x_rotation += 3
+    z_rotation += 1
     if Buttons.is_pressed(Buttons.JOY_Left):
         y_rotation -= 5
     if Buttons.is_pressed(Buttons.JOY_Right):
